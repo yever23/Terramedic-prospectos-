@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terramedic Prospector 2.0 - México Completo</title>
+    <style>
+        body {font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0f4c6b, #1a7c5e); color: #fff; margin:0; padding:20px;}
+        header {text-align:center; padding:30px; background:rgba(0,0,0,0.6); border-radius:15px;}
+        .logo {font-size:3em; color:#00d4ff;}
+        .container {max-width:900px; margin:20px auto; padding:25px; background:rgba(255,255,255,0.1); border-radius:15px;}
+        input, select, button {padding:12px; margin:8px; font-size:1.1em; border-radius:8px; border:none;}
+        button {background:#ff4500; color:white; cursor:pointer; font-weight:bold;}
+        button:hover {background:#ff6347;}
+        #results, #client-details {margin-top:20px; padding:20px; background:rgba(0,0,0,0.4); border-radius:10px;}
+        .api-section {background:rgba(0,0,0,0.5); padding:15px; border-radius:10px; margin:20px 0;}
+        footer {text-align:center; margin-top:50px; font-size:0.9em; opacity:0.8;}
+    </style>
+</head>
+<body>
+    <header>
+        <h1 class="logo">TERRAMEDIC PROSPECTOR 2.0</h1>
+        <p>Neurocirugía • Columna • Ortopedia • México completo 2025</p>
+    </header>
+
+    <div class="container">
+        <div class="api-section">
+            <label>🔐 Tu API Key de Gemini (solo tú la ves, nunca se sube a GitHub):</label><br>
+            <input type="password" id="apiKey" placeholder="Aquí pega tu key de Google AI Studio" style="width:100%; max-width:500px;">
+            <button onclick="saveKey()">Guardar Key (local)</button>
+            <p id="keyStatus" style="font-size:0.9em;"></p>
+        </div>
+
+        <label for="estado">Estado:</label>
+        <select id="estado">
+            <option value="Aguascalientes">Aguascalientes</option>
+            <option value="Baja California">Baja California</option>
+            <option value="Baja California Sur">Baja California Sur</option>
+            <option value="Campeche">Campeche</option>
+            <option value="Chiapas">Chiapas</option>
+            <option value="Chihuahua">Chihuahua</option>
+            <option value="Ciudad de México" selected>CDMX</option>
+            <option value="Coahuila">Coahuila</option>
+            <option value="Colima">Colima</option>
+            <option value="Durango">Durango</option>
+            <option value="Guanajuato">Guanajuato</option>
+            <option value="Guerrero">Guerrero</option>
+            <option value="Hidalgo">Hidalgo</option>
+            <option value="Jalisco">Jalisco</option>
+            <option value="Estado de México">Estado de México</option>
+            <option value="Michoacán">Michoacán</option>
+            <option value="Morelos">Morelos</option>
+            <option value="Nayarit">Nayarit</option>
+            <option value="Nuevo León">Nuevo León</option>
+            <option value="Oaxaca">Oaxaca</option>
+            <option value="Puebla">Puebla</option>
+            <option value="Querétaro">Querétaro</option>
+            <option value="Quintana Roo">Quintana Roo</option>
+            <option value="San Luis Potosí">San Luis Potosí</option>
+            <option value="Sinaloa">Sinaloa</option>
+            <option value="Sonora">Sonora</option>
+            <option value="Tabasco">Tabasco</option>
+            <option value="Tamaulipas">Tamaulipas</option>
+            <option value="Tlaxcala">Tlaxcala</option>
+            <option value="Veracruz">Veracruz</option>
+            <option value="Yucatán">Yucatán</option>
+            <option value="Zacatecas">Zacatecas</option>
+        </select><br>
+
+        <button onclick="buscarConGemini()" style="padding:15px 30px; font-size:1.3em;">Buscar Clientes Reales con Gemini</button>
+
+        <div id="results"></div>
+
+        <div id="detalle-section" style="display:none; margin-top:30px;">
+            <h2>Detalle del cliente</h2>
+            <input type="number" id="numero" placeholder="Número de la lista" min="1">
+            <button onclick="verDetalle()">Ver contacto + Pitch</button>
+            <div id="client-details"></div>
+        </div>
+    </div>
+
+    <footer>© 2025 Terramedic Prospector - Hecho con amor callejero y Gemini API</footer>
+
+    <script>
+        const CACHE_TIME = 30 * 24 * 60 * 60 * 1000; // 30 días
+
+        function saveKey() {
+            const key = document.getElementById('apiKey').value.trim();
+            if (key) {
+                localStorage.setItem('gemini_key', key);
+                document.getElementById('keyStatus').innerHTML = '¡Key guardada solo en tu navegador!';
+            }
+        }
+
+        function getKey() {
+            return localStorage.getItem('gemini_key') || '';
+        }
+
+        async function buscarConGemini() {
+            const estado = document.getElementById('estado').value;
+            const cacheKey = `clientes_${estado.replace(/ /g,'_')}`;
+            const cached = localStorage.getItem(cacheKey);
+            
+            if (cached) {
+                const data = JSON.parse(cached);
+                if (Date.now() - data.timestamp < CACHE_TIME) {
+                    mostrarLista(data.clientes, estado);
+                    return;
+                }
+            }
+
+            const apiKey = getKey();
+            if (!apiKey) {
+                alert('Primero guarda tu API Key de Gemini');
+                return;
+            }
+
+            document.getElementById('results').innerHTML = '<p>Consultando a Gemini, un segundo jefe...</p>';
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        contents: [{role: "user", parts: [{text: 
+`Dame exactamente 15 hospitales reales (públicos y privados) en ${estado}, México, que tengan servicio activo de neurocirugía, cirugía de columna o traumatología y ortopedia nivel alto en 2025.
+Formato exacto (una línea por hospital):
+N. Nombre del hospital | Tipo (Público/Privado) | Ciudad | Dirección completa | Teléfono principal (si existe)
+
+Solo responde con las 15 líneas, nada más.`}]}]
+                    })
+                });
+
+                const data = await response.json();
+                const texto = data.candidates[0].content.parts[0].text;
+                const lineas = texto.trim().split('\n').slice(0,15);
+                
+                const cacheData = {clientes: lineas, timestamp: Date.now()};
+                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                
+                mostrarLista(lineas, estado);
+            } catch (e) {
+                document.getElementById('results').innerHTML = '<p>Error con Gemini, revisa tu key o conexión.</p>';
+            }
+        }
+
+        function mostrarLista(lineas, estado) {
+            let html = `<h2>15 mejores prospectos en ${estado}:</h2><ol>`;
+            lineas.forEach(l => html += `<li>${l.split('|').slice(0,3).join(' | ')}</li>`);
+            html += `</ol>`;
+            document.getElementById('results').innerHTML = html;
+            document.getElementById('detalle-section').style.display = 'block';
+            window.clientesActuales = lineas;
+        }
+
+        function verDetalle() {
+            const num = parseInt(document.getElementById('numero').value) - 1;
+            if (num >= 0 && num < window.clientesActuales.length) {
+                const cliente = window.clientesActuales[num];
+                document.getElementById('client-details').innerHTML = `
+                    <h3>${cliente}</h3>
+                    <p><strong>Pitch rápido Terramedic:</strong><br>
+                    “Buenas doctor, somos distribuidores directos Medtronic (Midas Rex MR8), Bbraun (Elan 4), SeaSpine (Shoreline/Mariner), Stryker (Sonopet), KLS Martin y más. 
+                    Traemos todo el catálogo 2025 con precios especiales de lanzamiento y crédito directo. 
+                    ¿Con quién coordino una visita para dejarle el catálogo físico y cotización personalizada?”</p>
+                `;
+            } else {
+                alert('Número inválido, carnal');
+            }
+        }
+
+        // Cargar key guardada al abrir
+        if (getKey()) document.getElementById('keyStatus').innerHTML = 'Key detectada y lista';
+    </script>
+</body>
+</html>
